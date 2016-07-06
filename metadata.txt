@@ -1,0 +1,39 @@
+# This file contains metadata for your plugin. Since 
+# version 2.0 of QGIS this is the proper way to supply 
+# information about a plugin. The old method of 
+# embedding metadata in __init__.py will 
+# is no longer supported since version 2.0.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=Matplotlib graph generator
+qgisMinimumVersion=2.0
+description=Creates a custom matplotlib graph based on vector feature data
+version=0.1
+author=A. Roche
+email=aroche@photoherbarium.fr
+
+about=This plugin allows to display a custom graph based on feature data in a panel. A matplotlib-like function is provided, and the graph is updated every time a feature is clicked.
+
+tracker=https://github.com/aroche/matplotlib_graph/issues
+repository=https://github.com/aroche/matplotlib_graph
+# End of mandatory metadata
+
+# Recommended items:
+
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=
+
+homepage=
+category=Plugins
+icon=icon.png
+# experimental flag
+experimental=True
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
