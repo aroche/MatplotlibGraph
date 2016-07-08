@@ -79,6 +79,9 @@ class MatplotlibGraph:
         self.currentLayer = None
         
         self.tool = MplMapTool(self.iface.mapCanvas())
+        
+        self.graphFunction = None
+        self.functionChanged = True
 
 
     # noinspection PyMethodMayBeStatic
@@ -183,7 +186,8 @@ class MatplotlibGraph:
             
         # connections
         #QObject.connect(self.iface, SIGNAL("currentLayerChanged(QgsMapLayer *)"), self.onCurrentLayerChanged)
-        QObject.connect(self.tool, SIGNAL("clicked(QgsFeature)"), self.onFeatureClicked)
+        self.tool.clicked.connect(self.onFeatureClicked)
+        
 
     #--------------------------------------------------------------------------
     def logMessage(self, msg):
@@ -197,6 +201,9 @@ class MatplotlibGraph:
     def onFeatureClicked(self, ft):
         self.logMessage(ft.fields().count())
         self.createGraph(ft)
+        
+    def onFunctionChanged(self):
+        self.functionChanged = True
 
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
@@ -259,29 +266,34 @@ axes = figure.gca()
 axes.set_yticks(ypos)
 axes.set_yticklabels(fields)
 axes.barh(ypos, length)
-"""))
-                
+"""))                
 
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
 
+            self.dockwidget.editor.textChanged.connect(self.onFunctionChanged)
+            
             # show the dockwidget
             # TODO: fix to allow choice of dock location
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
             
+            
             self.iface.mapCanvas().setMapTool(self.tool)
 
             
     def getFunction(self):
-        #f = """figure.gca().plot([1,2,3,4])"""
-        f = self.dockwidget.editor.text()
-
-        user_source = "def user_func(feature, figure):\n" + '\n'.join(
-            "    " + line for line in f.splitlines())
-        d = {}
-        exec user_source in d
-        return d['user_func']
+        if self.functionChanged:
+            f = self.dockwidget.editor.text()
+            user_source = "def user_func(feature, figure):\n" + '\n'.join(
+                "    " + line for line in f.splitlines())
+            d = {}
+            exec user_source in d
+            self.graphFunction = d['user_func']
+            self.functionChanged = False
+        return self.graphFunction
+        
+        
             
     def createGraph(self, feature):
         func = self.getFunction()
