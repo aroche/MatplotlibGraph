@@ -22,7 +22,7 @@
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, Qt, \
     QObject, SIGNAL
-from PyQt4.QtGui import QAction, QIcon
+from PyQt4.QtGui import QAction, QIcon, QFileDialog
 # Initialize Qt resources from file resources.py
 import resources
 
@@ -204,7 +204,19 @@ class MatplotlibGraph:
         
     def onFunctionChanged(self):
         self.functionChanged = True
-
+        
+    def onLoadFileClicked(self):
+        fname = QFileDialog.getOpenFileName(self.dockwidget, self.tr("Open script"), None, 'Python Files (*.py)')
+        if fname :
+            with open(fname, 'r') as f:
+                self.dockwidget.editor.setText(f.read())
+            
+    def onSaveFileClicked(self):
+        fname = QFileDialog.getSaveFileName(self.dockwidget, self.tr('save script'), None, 'Python Files (*.py)')
+        if fname:
+            with open(fname, 'w') as f:
+                f.write(self.dockwidget.editor.text())
+            
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
 
@@ -272,6 +284,8 @@ axes.barh(ypos, length)
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
 
             self.dockwidget.editor.textChanged.connect(self.onFunctionChanged)
+            self.dockwidget.loadFileButton.clicked.connect(self.onLoadFileClicked)
+            self.dockwidget.saveFileButton.clicked.connect(self.onSaveFileClicked)
             
             # show the dockwidget
             # TODO: fix to allow choice of dock location
@@ -292,8 +306,7 @@ axes.barh(ypos, length)
             self.graphFunction = d['user_func']
             self.functionChanged = False
         return self.graphFunction
-        
-        
+
             
     def createGraph(self, feature):
         func = self.getFunction()
@@ -302,7 +315,3 @@ axes.barh(ypos, length)
         
         self.dockwidget.figureCanvas.draw()
         self.dockwidget.tabWidget.setCurrentIndex(0)
-        
-            
-            
-
