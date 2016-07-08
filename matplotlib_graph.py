@@ -28,7 +28,6 @@ import resources
 
 from qgis.core import QgsMapLayer, QgsMessageLog
 from mplmaptool import MplMapTool
-from mpl_canvas import MplCanvas
 
 # Import the code for the DockWidget
 from matplotlib_graph_dockwidget import MatplotlibGraphDockWidget
@@ -247,8 +246,21 @@ class MatplotlibGraph:
                 # Create the dockwidget (after translation) and keep reference
                 self.dockwidget = MatplotlibGraphDockWidget()
                 
-                self.figureCanvas = MplCanvas(self.dockwidget)
-                self.dockwidget.verticalLayout.addWidget(self.figureCanvas)
+                self.dockwidget.editor.setText(self.tr("""# Type here the content of the function
+# You can use the following arguments:
+# - feature: the feature that was clicked
+# - figure: the matplotlib figure
+
+# Example: bar graph of attribute length
+fields = [f.name() for f in feature.fields()]
+ypos = range(len(fields))
+length = [len(unicode(a)) for a in feature.attributes()]
+axes = figure.gca()
+axes.set_yticks(ypos)
+axes.set_yticklabels(fields)
+axes.barh(ypos, length)
+"""))
+                
 
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
@@ -262,20 +274,22 @@ class MatplotlibGraph:
 
             
     def getFunction(self):
-        f = """figure.gca().plot([1,2,3,4])"""
+        #f = """figure.gca().plot([1,2,3,4])"""
+        f = self.dockwidget.editor.text()
+
         user_source = "def user_func(feature, figure):\n" + '\n'.join(
             "    " + line for line in f.splitlines())
-        #self.logMessage(user_source)
         d = {}
         exec user_source in d
         return d['user_func']
             
     def createGraph(self, feature):
         func = self.getFunction()
+        self.dockwidget.figureCanvas.clear()
+        func(feature, self.dockwidget.figureCanvas.figure)
         
-        self.figureCanvas.clear()
-        func(feature, self.figureCanvas.figure)
-        self.figureCanvas.draw()
+        self.dockwidget.figureCanvas.draw()
+        self.dockwidget.tabWidget.setCurrentIndex(0)
         
             
             

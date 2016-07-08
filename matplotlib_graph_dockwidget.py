@@ -25,6 +25,10 @@ import os
 
 from PyQt4 import QtGui, uic
 from PyQt4.QtCore import pyqtSignal
+from qgis.gui import QgsCodeEditorPython
+
+from mpl_canvas import MplCanvas
+
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'matplotlib_graph_dockwidget_base.ui'))
@@ -43,6 +47,11 @@ class MatplotlibGraphDockWidget(QtGui.QDockWidget, FORM_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        
+        self.editor = QgsCodeEditorPython(self.tab_2)
+        self.tab_2.layout().addWidget(self.editor)
+        self.figureCanvas = MplCanvas(self)
+        self.verticalLayout.addWidget(self.figureCanvas)
 
     def closeEvent(self, event):
         self.closingPlugin.emit()
