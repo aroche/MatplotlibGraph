@@ -20,10 +20,15 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, Qt
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, Qt, \
+    QObject, SIGNAL
 from PyQt4.QtGui import QAction, QIcon
 # Initialize Qt resources from file resources.py
 import resources
+
+from qgis.core import QgsMapLayer, QgsMessageLog
+from mplmaptool import MplMapTool
+from mpl_canvas import MplCanvas
 
 # Import the code for the DockWidget
 from matplotlib_graph_dockwidget import MatplotlibGraphDockWidget
@@ -72,6 +77,9 @@ class MatplotlibGraph:
 
         self.pluginIsActive = False
         self.dockwidget = None
+        self.currentLayer = None
+        
+        self.tool = MplMapTool(self.iface.mapCanvas())
 
 
     # noinspection PyMethodMayBeStatic
@@ -173,8 +181,23 @@ class MatplotlibGraph:
             text=self.tr(u'Matplotlib Graph'),
             callback=self.run,
             parent=self.iface.mainWindow())
+            
+        # connections
+        #QObject.connect(self.iface, SIGNAL("currentLayerChanged(QgsMapLayer *)"), self.onCurrentLayerChanged)
+        QObject.connect(self.tool, SIGNAL("clicked(QgsFeature)"), self.onFeatureClicked)
 
     #--------------------------------------------------------------------------
+    def logMessage(self, msg):
+        QgsMessageLog.logMessage(str(msg), 'MplGraph', QgsMessageLog.INFO)
+    
+    
+    #def onCurrentLayerChanged(self, layer):
+        #if layer.type() == QgsMapLayer.VectorLayer:
+            #self.currentLayer = layer
+            
+    def onFeatureClicked(self, ft):
+        self.logMessage(ft.fields().count())
+        self.createGraph(ft)
 
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
@@ -205,6 +228,7 @@ class MatplotlibGraph:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
+        self.tool.deactivate()
 
     #--------------------------------------------------------------------------
 
@@ -222,6 +246,9 @@ class MatplotlibGraph:
             if self.dockwidget == None:
                 # Create the dockwidget (after translation) and keep reference
                 self.dockwidget = MatplotlibGraphDockWidget()
+                
+                self.figureCanvas = MplCanvas(self.dockwidget)
+                self.dockwidget.verticalLayout.addWidget(self.figureCanvas)
 
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
@@ -230,4 +257,26 @@ class MatplotlibGraph:
             # TODO: fix to allow choice of dock location
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
+            
+            self.iface.mapCanvas().setMapTool(self.tool)
+
+            
+    def getFunction(self):
+        f = """figure.gca().plot([1,2,3,4])"""
+        user_source = "def user_func(feature, figure):\n" + '\n'.join(
+            "    " + line for line in f.splitlines())
+        #self.logMessage(user_source)
+        d = {}
+        exec user_source in d
+        return d['user_func']
+            
+    def createGraph(self, feature):
+        func = self.getFunction()
+        
+        self.figureCanvas.clear()
+        func(feature, self.figureCanvas.figure)
+        self.figureCanvas.draw()
+        
+            
+            
 
