@@ -185,11 +185,7 @@ class MatplotlibGraph:
             callback=self.run,
             parent=self.iface.mainWindow())
             
-        # connections
-        self.iface.currentLayerChanged.connect(self.onCurrentLayerChanged)
-        self.iface.mapCanvas().mapToolSet.connect(self.onToolSetChanged)
-        self.tool.clicked.connect(self.onFeatureClicked)
-        
+                
 
     #--------------------------------------------------------------------------
     def logMessage(self, msg):
@@ -197,7 +193,8 @@ class MatplotlibGraph:
     
     
     def onCurrentLayerChanged(self, layer):
-        self.initLayerFunction()
+        if self.pluginIsActive:
+            self.initLayerFunction()
             
     def onFeatureClicked(self, ft):
         self.createGraph(ft)
@@ -280,6 +277,11 @@ class MatplotlibGraph:
 
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
+            
+            # connections
+            self.iface.currentLayerChanged.connect(self.onCurrentLayerChanged)
+            self.iface.mapCanvas().mapToolSet.connect(self.onToolSetChanged)
+            self.tool.clicked.connect(self.onFeatureClicked)
 
             self.dockwidget.editor.textChanged.connect(self.onFunctionChanged)
             self.dockwidget.loadFileButton.clicked.connect(self.onLoadFileClicked)
@@ -347,3 +349,4 @@ axes.barh(ypos, length)
 # option to save figure as image
 # test exec safety
 # catch exec errors
+# add help tab
