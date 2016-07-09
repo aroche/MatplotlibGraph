@@ -227,18 +227,8 @@ class MatplotlibGraph:
             
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
-
-        #print "** CLOSING MatplotlibGraph"
-
         # disconnects
         self.dockwidget.closingPlugin.disconnect(self.onClosePlugin)
-
-        # remove this statement if dockwidget is to remain
-        # for reuse if plugin is reopened
-        # Commented next statement since it causes QGIS crashe
-        # when closing the docked window:
-        # self.dockwidget = None
-
         self.pluginIsActive = False
 
 
@@ -273,8 +263,6 @@ class MatplotlibGraph:
                 # Create the dockwidget (after translation) and keep reference
                 self.dockwidget = MatplotlibGraphDockWidget()
                 
-                         
-
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             
@@ -298,7 +286,6 @@ class MatplotlibGraph:
             
     def initLayerFunction(self):
         layer = self.iface.activeLayer()
-        self.logMessage(QgsMapLayer)
         if layer and layer.type() == QgsMapLayer.VectorLayer:
             if layer.id() in self.layerRegistry:
                 self.dockwidget.editor.setText(self.layerRegistry[layer.id()])
@@ -347,6 +334,7 @@ axes.barh(ypos, length)
 # TODO
 # save functions in project
 # option to save figure as image
+# save also for every feature in the layer (atlas-like)
 # test exec safety
 # catch exec errors
 # add help tab
