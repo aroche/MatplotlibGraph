@@ -75,13 +75,12 @@ class MatplotlibGraph:
 
         self.pluginIsActive = False
         self.dockwidget = None
-        self.currentLayer = None
         
         self.tool = MplMapTool(self.iface.mapCanvas())
         
         self.graphFunction = None
         self.functionChanged = True
-        self.layerRegistry = {}
+        #self.layerRegistry = {}
 
 
     # noinspection PyMethodMayBeStatic
@@ -197,14 +196,16 @@ class MatplotlibGraph:
             self.initLayerFunction()
             
     def onFeatureClicked(self, ft):
-        self.createGraph(ft)
+        layer = self.iface.activeLayer()
+        if self.iface.legendInterface().isLayerVisible(layer):
+            layer.setCustomProperty('matplotlibGraphFunction', self.dockwidget.editor.text())
+            self.createGraph(ft)
         
     def onFunctionChanged(self):
         # save function for the layer
         layer = self.iface.activeLayer()
-        if layer:
-            self.layerRegistry[layer.id()] = self.dockwidget.editor.text()
-        self.functionChanged = True
+        if layer and self.pluginIsActive:
+            self.functionChanged = True
         
     def onLoadFileClicked(self):
         fname = QFileDialog.getOpenFileName(self.dockwidget, self.tr("Open script"), None, 'Python Files (*.py)')
@@ -224,6 +225,7 @@ class MatplotlibGraph:
         for action in self.actions:
             if action.isCheckable():
                 action.setChecked(False)
+        self.pluginIsActive = False
             
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
@@ -242,6 +244,7 @@ class MatplotlibGraph:
         # remove the toolbar
         del self.toolbar
         self.tool.deactivate()
+        
 
     #--------------------------------------------------------------------------
 
@@ -285,10 +288,12 @@ class MatplotlibGraph:
             
             
     def initLayerFunction(self):
+        """Initialize the function text with sample or recorded text"""
         layer = self.iface.activeLayer()
         if layer and layer.type() == QgsMapLayer.VectorLayer:
-            if layer.id() in self.layerRegistry:
-                self.dockwidget.editor.setText(self.layerRegistry[layer.id()])
+            func = layer.customProperty('matplotlibGraphFunction')
+            if func:
+                self.dockwidget.editor.setText(func)
             else:
                 self.dockwidget.editor.setText(self.tr("""# Type here the content of the function
 # You can use the following arguments:
@@ -309,7 +314,6 @@ axes.barh(ypos, length)
             self.dockwidget.tabWidget.setEnabled(False)
             
 
-            
     def getFunction(self):
         if self.functionChanged:
             f = self.dockwidget.editor.text()
