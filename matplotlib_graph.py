@@ -20,8 +20,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, Qt, \
-    QObject, SIGNAL
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, Qt
 from PyQt4.QtGui import QAction, QIcon, QFileDialog
 # Initialize Qt resources from file resources.py
 import resources
@@ -82,6 +81,7 @@ class MatplotlibGraph:
         
         self.graphFunction = None
         self.functionChanged = True
+        self.layerRegistry = {}
 
 
     # noinspection PyMethodMayBeStatic
@@ -185,7 +185,7 @@ class MatplotlibGraph:
             parent=self.iface.mainWindow())
             
         # connections
-        #QObject.connect(self.iface, SIGNAL("currentLayerChanged(QgsMapLayer *)"), self.onCurrentLayerChanged)
+        self.iface.currentLayerChanged.connect(self.onCurrentLayerChanged)
         self.tool.clicked.connect(self.onFeatureClicked)
         
 
@@ -194,15 +194,17 @@ class MatplotlibGraph:
         QgsMessageLog.logMessage(str(msg), 'MplGraph', QgsMessageLog.INFO)
     
     
-    #def onCurrentLayerChanged(self, layer):
-        #if layer.type() == QgsMapLayer.VectorLayer:
-            #self.currentLayer = layer
+    def onCurrentLayerChanged(self, layer):
+        self.initLayerFunction()
             
     def onFeatureClicked(self, ft):
-        self.logMessage(ft.fields().count())
         self.createGraph(ft)
         
     def onFunctionChanged(self):
+        # save function for the layer
+        layer = self.iface.activeLayer()
+        if layer:
+            self.layerRegistry[layer.id()] = self.dockwidget.editor.text()
         self.functionChanged = True
         
     def onLoadFileClicked(self):
@@ -265,20 +267,7 @@ class MatplotlibGraph:
                 # Create the dockwidget (after translation) and keep reference
                 self.dockwidget = MatplotlibGraphDockWidget()
                 
-                self.dockwidget.editor.setText(self.tr("""# Type here the content of the function
-# You can use the following arguments:
-# - feature: the feature that was clicked
-# - figure: the matplotlib figure
-
-# Example: bar graph of attribute length
-fields = [f.name() for f in feature.fields()]
-ypos = range(len(fields))
-length = [len(unicode(a)) for a in feature.attributes()]
-axes = figure.gca()
-axes.set_yticks(ypos)
-axes.set_yticklabels(fields)
-axes.barh(ypos, length)
-"""))                
+                         
 
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
@@ -292,8 +281,36 @@ axes.barh(ypos, length)
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
             
+            self.initLayerFunction()
             
             self.iface.mapCanvas().setMapTool(self.tool)
+            
+            
+    def initLayerFunction(self):
+        layer = self.iface.activeLayer()
+        self.logMessage(QgsMapLayer)
+        if layer: # and layer.type() == QgsMapLayer.VectorLayer:
+            if layer.id() in self.layerRegistry:
+                self.dockwidget.editor.setText(self.layerRegistry[layer.id()])
+            else:
+                self.dockwidget.editor.setText(self.tr("""# Type here the content of the function
+# You can use the following arguments:
+# - feature: the feature that was clicked
+# - figure: the matplotlib figure
+
+# Example: bar graph of attribute length
+fields = [f.name() for f in feature.fields()]
+ypos = range(len(fields))
+length = [len(unicode(a)) for a in feature.attributes()]
+axes = figure.gca()
+axes.set_yticks(ypos)
+axes.set_yticklabels(fields)
+axes.barh(ypos, length)
+"""))
+            self.dockwidget.setEnabled(True)
+        else:
+            self.dockwidget.setEnabled(False)
+            
 
             
     def getFunction(self):
