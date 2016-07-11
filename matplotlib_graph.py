@@ -75,13 +75,12 @@ class MatplotlibGraph:
 
         self.pluginIsActive = False
         self.dockwidget = None
-        self.currentLayer = None
         
         self.tool = MplMapTool(self.iface.mapCanvas())
         
         self.graphFunction = None
         self.functionChanged = True
-        self.layerRegistry = {}
+        #self.layerRegistry = {}
 
 
     # noinspection PyMethodMayBeStatic
@@ -152,7 +151,8 @@ class MatplotlibGraph:
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
-        action.triggered.connect(callback)
+        action.setCheckable(True)
+        action.toggled.connect(callback)
         action.setEnabled(enabled_flag)
 
         if status_tip is not None:
@@ -184,10 +184,6 @@ class MatplotlibGraph:
             callback=self.run,
             parent=self.iface.mainWindow())
             
-        # connections
-        self.iface.currentLayerChanged.connect(self.onCurrentLayerChanged)
-        self.tool.clicked.connect(self.onFeatureClicked)
-        
 
     #--------------------------------------------------------------------------
     def logMessage(self, msg):
@@ -195,17 +191,20 @@ class MatplotlibGraph:
     
     
     def onCurrentLayerChanged(self, layer):
-        self.initLayerFunction()
+        if self.pluginIsActive:
+            self.initLayerFunction()
             
     def onFeatureClicked(self, ft):
-        self.createGraph(ft)
+        layer = self.iface.activeLayer()
+        if self.iface.legendInterface().isLayerVisible(layer):
+            layer.setCustomProperty('matplotlibGraphFunction', self.dockwidget.editor.text())
+            self.createGraph(ft)
         
     def onFunctionChanged(self):
         # save function for the layer
         layer = self.iface.activeLayer()
-        if layer:
-            self.layerRegistry[layer.id()] = self.dockwidget.editor.text()
-        self.functionChanged = True
+        if layer and self.pluginIsActive:
+            self.functionChanged = True
         
     def onLoadFileClicked(self):
         fname = QFileDialog.getOpenFileName(self.dockwidget, self.tr("Open script"), None, 'Python Files (*.py)')
@@ -218,29 +217,24 @@ class MatplotlibGraph:
         if fname:
             with open(fname, 'w') as f:
                 f.write(self.dockwidget.editor.text())
+                
+    def onToolSetChanged(self, tool):
+        if tool == self.tool:
+            return
+        for action in self.actions:
+            if action.isCheckable():
+                action.setChecked(False)
+        self.pluginIsActive = False
             
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
-
-        #print "** CLOSING MatplotlibGraph"
-
         # disconnects
         self.dockwidget.closingPlugin.disconnect(self.onClosePlugin)
-
-        # remove this statement if dockwidget is to remain
-        # for reuse if plugin is reopened
-        # Commented next statement since it causes QGIS crashe
-        # when closing the docked window:
-        # self.dockwidget = None
-
         self.pluginIsActive = False
 
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
-
-        #print "** UNLOAD MatplotlibGraph"
-
         for action in self.actions:
             self.iface.removePluginMenu(
                 self.tr(u'&Matplotlib graph generator'),
@@ -249,11 +243,15 @@ class MatplotlibGraph:
         # remove the toolbar
         del self.toolbar
         self.tool.deactivate()
+        
 
     #--------------------------------------------------------------------------
 
-    def run(self):
+    def run(self, checked):
         """Run method that loads and starts the plugin"""
+        if not checked:
+            self.iface.mapCanvas().unsetMapTool(self.tool)
+            return
 
         if not self.pluginIsActive:
             self.pluginIsActive = True
@@ -267,31 +265,36 @@ class MatplotlibGraph:
                 # Create the dockwidget (after translation) and keep reference
                 self.dockwidget = MatplotlibGraphDockWidget()
                 
-                         
-
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
+            
+            # connections
+            self.iface.currentLayerChanged.connect(self.onCurrentLayerChanged)
+            self.iface.mapCanvas().mapToolSet.connect(self.onToolSetChanged)
+            self.tool.clicked.connect(self.onFeatureClicked)
+
 
             self.dockwidget.editor.textChanged.connect(self.onFunctionChanged)
             self.dockwidget.loadFileButton.clicked.connect(self.onLoadFileClicked)
             self.dockwidget.saveFileButton.clicked.connect(self.onSaveFileClicked)
             
             # show the dockwidget
-            # TODO: fix to allow choice of dock location
+
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
             
             self.initLayerFunction()
-            
+          
             self.iface.mapCanvas().setMapTool(self.tool)
             
             
     def initLayerFunction(self):
+        """Initialize the function text with sample or recorded text"""
         layer = self.iface.activeLayer()
-        self.logMessage(QgsMapLayer)
-        if layer: # and layer.type() == QgsMapLayer.VectorLayer:
-            if layer.id() in self.layerRegistry:
-                self.dockwidget.editor.setText(self.layerRegistry[layer.id()])
+        if layer and layer.type() == QgsMapLayer.VectorLayer:
+            func = layer.customProperty('matplotlibGraphFunction')
+            if func:
+                self.dockwidget.editor.setText(func)
             else:
                 self.dockwidget.editor.setText(self.tr("""# Type here the content of the function
 # You can use the following arguments:
@@ -307,12 +310,11 @@ axes.set_yticks(ypos)
 axes.set_yticklabels(fields)
 axes.barh(ypos, length)
 """))
-            self.dockwidget.setEnabled(True)
+            self.dockwidget.tabWidget.setEnabled(True)
         else:
-            self.dockwidget.setEnabled(False)
+            self.dockwidget.tabWidget.setEnabled(False)
             
 
-            
     def getFunction(self):
         if self.functionChanged:
             f = self.dockwidget.editor.text()
@@ -332,3 +334,12 @@ axes.barh(ypos, length)
         
         self.dockwidget.figureCanvas.draw()
         self.dockwidget.tabWidget.setCurrentIndex(0)
+        
+
+# TODO
+# save functions in project
+# option to save figure as image
+# save also for every feature in the layer (atlas-like)
+# test exec safety
+# catch exec errors
+# add help tab
