@@ -228,6 +228,10 @@ class MatplotlibGraph:
             
     def onClosePlugin(self):
         """Cleanup necessary items here when plugin dockwidget is closed"""
+        self.iface.mapCanvas().unsetMapTool(self.tool)
+        for action in self.actions:
+            if action.isCheckable():
+                action.setChecked(False)
         # disconnects
         self.dockwidget.closingPlugin.disconnect(self.onClosePlugin)
         self.pluginIsActive = False
@@ -235,6 +239,7 @@ class MatplotlibGraph:
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
+        self.iface.mapCanvas().unsetMapTool(self.tool)
         for action in self.actions:
             self.iface.removePluginMenu(
                 self.tr(u'&Matplotlib graph generator'),
