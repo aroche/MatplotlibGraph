@@ -2,9 +2,11 @@
 
 import matplotlib
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
 from matplotlib.figure import Figure
 
 from PyQt4.QtGui import QSizePolicy
+from PyQt4.QtCore import QSize
 
 
 class MplCanvas(FigureCanvas):
@@ -15,11 +17,17 @@ class MplCanvas(FigureCanvas):
 
         FigureCanvas.__init__(self, self.figure)
         self.setParent(parent)
+        
+        self.toolbar = NavigationToolbar(self, parent)
+        self.toolbar.setIconSize(QSize(16, 16))
 
         FigureCanvas.setSizePolicy(self,
                                    QSizePolicy.Expanding,
                                    QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
+        
+    def getToolbar(self):
+        return self.toolbar
 
     def clear(self):
         self.figure.clear()
@@ -27,3 +35,6 @@ class MplCanvas(FigureCanvas):
         
     def test(self):
         self.axes.plot([1,2,3,4])
+        
+    def saveAs(self, fname):
+        self.figure.savefig(fname)

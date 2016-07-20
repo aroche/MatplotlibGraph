@@ -52,6 +52,7 @@ class MatplotlibGraphDockWidget(QtGui.QDockWidget, FORM_CLASS):
         self.tab_2.layout().addWidget(self.editor)
         self.figureCanvas = MplCanvas(self)
         self.verticalLayout.addWidget(self.figureCanvas)
+        self.verticalLayout.addWidget(self.figureCanvas.getToolbar())
 
     def closeEvent(self, event):
         self.closingPlugin.emit()
